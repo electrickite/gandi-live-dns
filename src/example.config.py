@@ -43,3 +43,9 @@ e.g.
 + many more ...
 '''
 ifconfig = 'choose_from_above_or_run_your_own'
+
+'''
+Determine your external IP with a shell command instead of using lookup services
+The command should return the external IP address on stdout
+'''
+#ip_command = "/sbin/ifconfig en0 | /bin/grep inet | /bin/grep -v inet6 | /usr/bin/awk '{print $2}'"

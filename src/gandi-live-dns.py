@@ -15,15 +15,37 @@ http://doc.livedns.gandi.net/#api-endpoint -> https://dns.beta.gandi.net/api/v5/
 import requests, json
 import config
 import argparse
+import re
+import subprocess
+
+
+IP_ADDRESS_REGEX = re.compile('\d{1,3}(?:\.\d{1,3}){3}')
 
 
 def get_dynip(ifconfig_provider):
     ''' find out own IPv4 at home <-- this is the dynamic IP which changes more or less frequently
     similar to curl ifconfig.me/ip, see example.config.py for details to ifconfig providers 
-    ''' 
+    '''
+    print 'Checking dynamic IP using ' , ifconfig_provider
     r = requests.get(ifconfig_provider)
-    print 'Checking dynamic IP: ' , r._content.strip('\n')
-    return r.content.strip('\n')
+    r.raise_for_status()
+    return extract_ip(r.content.strip('\n'))
+
+def get_localip(ip_command):
+    ''' find IP address using shell command
+    '''
+    print 'Checking dynamic IP using command: ' , ip_command
+    output = subprocess.Popen(ip_command, shell=True, stdout=subprocess.PIPE).stdout.read().strip()
+    return extract_ip(output)
+
+def extract_ip(str):
+    ''' Returns the first IP address from a string
+    '''
+    match = IP_ADDRESS_REGEX.search(str)
+    if match is None:
+        return match
+    else:
+        return match.group(0)
 
 def get_uuid():
     ''' 
@@ -98,8 +120,17 @@ def main(force_update, verbosity):
     #get zone ID from Account
     uuid = get_uuid()
    
-    #compare dynIP and DNS IP 
-    dynIP = get_dynip(config.ifconfig)
+    #compare dynIP and DNS IP
+    if hasattr(config, 'ip_command'):
+        dynIP = get_localip(config.ip_command)
+    else:
+        dynIP = get_dynip(config.ifconfig)
+
+    if dynIP is None:
+        raise RuntimeError('Could not get valid dynamic IP')
+    else:
+        print 'Dynamic IP: ' , dynIP
+
     dnsIP = get_dnsip(uuid)
     
     if force_update:
